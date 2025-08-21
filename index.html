@@ -1,661 +1,595 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Travel Drawing Diary</title>
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            overflow-x: hidden;
-        }
-        
-        ::-webkit-scrollbar {
-            width: 2px;
-        }
-        
-        ::-webkit-scrollbar-track {
-            background: transparent;
-        }
-        
-        ::-webkit-scrollbar-thumb {
-            background: rgba(251, 146, 60, 0.3);
-            border-radius: 2px;
-        }
-        
-        input, textarea, select {
-            font-size: 16px !important;
-        }
-        
-        canvas {
-            touch-action: none;
-        }
-        
-        /* Simple icon replacements using Unicode */
-        .icon {
-            display: inline-block;
-            width: 1.5rem;
-            height: 1.5rem;
-            text-align: center;
-            line-height: 1.5rem;
-            font-size: 1rem;
-        }
-        
-        .icon-plus::before { content: '+'; }
-        .icon-book::before { content: '📖'; }
-        .icon-edit::before { content: '✏️'; }
-        .icon-palette::before { content: '🎨'; }
-        .icon-camera::before { content: '📷'; }
-        .icon-type::before { content: 'Aa'; }
-        .icon-brush::before { content: '🖌️'; }
-        .icon-eraser::before { content: '🗑️'; }
-        .icon-share::before { content: '↗️'; }
-        .icon-download::before { content: '⬇️'; }
-        .icon-left::before { content: '←'; }
-        .icon-right::before { content: '→'; }
-        .icon-clear::before { content: '🔄'; }
-    </style>
-</head>
-<body>
-    <div id="root"></div>
+import React, { useState, useRef, useEffect } from 'react';
+import { Plus, Book, Calendar, MapPin, Edit, Palette, Download, Share, ChevronLeft, ChevronRight, Camera, Type, Brush, Eraser, RotateCcw } from 'lucide-react';
 
-    <script type="text/babel">
-        const { useState, useRef, useEffect } = React;
+const TravelDrawingDiary = () => {
+  const [currentView, setCurrentView] = useState('home'); // home, create-book, daily-entry, review-book, overview
+  const [trips, setTrips] = useState([]);
+  const [currentTrip, setCurrentTrip] = useState(null);
+  const [currentDay, setCurrentDay] = useState(null);
+  const [reviewPage, setReviewPage] = useState(0);
+  
+  // Drawing states
+  const canvasRef = useRef(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [brushSize, setBrushSize] = useState(3);
+  const [currentColor, setCurrentColor] = useState('#2D3436');
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [currentTool, setCurrentTool] = useState('brush');
+  
+  // Form states
+  const [tripForm, setTripForm] = useState({ title: '', cover: '', startDate: '', endDate: '' });
+  const [dayForm, setDayForm] = useState({ description: '', images: [] });
 
-        const TravelDrawingDiary = () => {
-            const [currentView, setCurrentView] = useState('home');
-            const [trips, setTrips] = useState([]);
-            const [currentTrip, setCurrentTrip] = useState(null);
-            const [currentDay, setCurrentDay] = useState(null);
-            const [reviewPage, setReviewPage] = useState(0);
+  // Initialize canvas
+  useEffect(() => {
+    if (canvasRef.current && currentView === 'daily-entry') {
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      
+      // Set canvas size for mobile
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * window.devicePixelRatio;
+      canvas.height = rect.height * window.devicePixelRatio;
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+      
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      
+      // Textured paper background
+      ctx.fillStyle = '#FEFEFE';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // Add subtle paper texture
+      ctx.globalAlpha = 0.05;
+      for (let i = 0; i < 50; i++) {
+        ctx.fillStyle = Math.random() > 0.5 ? '#E8E8E8' : '#F5F5F5';
+        ctx.fillRect(Math.random() * canvas.width, Math.random() * canvas.height, 2, 2);
+      }
+      ctx.globalAlpha = 1;
+    }
+  }, [currentView]);
+
+  // Artistic color palette - inspired by watercolors and sketching
+  const colorPalettes = {
+    sketch: ['#2D3436', '#636E72', '#B2BEC3', '#DDD6C5', '#F4E4BC'],
+    warm: ['#E17055', '#FDCB6E', '#E84393', '#FD79A8', '#FDCB6E'],
+    cool: ['#0984E3', '#74B9FF', '#00B894', '#55EFC4', '#A29BFE'],
+    earth: ['#8D6E63', '#D7CCC8', '#6C5B7B', '#C06C84', '#F8B195'],
+    vintage: ['#4A4A4A', '#8B7355', '#C7956D', '#E4C5AF', '#F2E7D5']
+  };
+  
+  const [currentPalette, setCurrentPalette] = useState('sketch');
+
+  const startDrawing = (e) => {
+    e.preventDefault();
+    setIsDrawing(true);
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    const rect = canvas.getBoundingClientRect();
+    
+    const touch = e.touches ? e.touches[0] : e;
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+    
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+  };
+
+  const draw = (e) => {
+    e.preventDefault();
+    if (!isDrawing) return;
+    
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    const rect = canvas.getBoundingClientRect();
+    
+    const touch = e.touches ? e.touches[0] : e;
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+    
+    if (currentTool === 'eraser') {
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.lineWidth = brushSize * 2;
+    } else {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.lineWidth = brushSize;
+      ctx.strokeStyle = currentColor;
+    }
+    
+    // Add slight randomness for more natural strokes
+    const randomOffset = Math.random() * 0.5 - 0.25;
+    ctx.lineTo(x + randomOffset, y + randomOffset);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x + randomOffset, y + randomOffset);
+  };
+
+  const stopDrawing = () => {
+    setIsDrawing(false);
+  };
+
+  const clearCanvas = () => {
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Redraw paper texture
+    ctx.fillStyle = '#FEFEFE';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.globalAlpha = 0.05;
+    for (let i = 0; i < 50; i++) {
+      ctx.fillStyle = Math.random() > 0.5 ? '#E8E8E8' : '#F5F5F5';
+      ctx.fillRect(Math.random() * canvas.width, Math.random() * canvas.height, 2, 2);
+    }
+    ctx.globalAlpha = 1;
+  };
+
+  const createTrip = () => {
+    if (tripForm.title && tripForm.startDate && tripForm.endDate) {
+      const newTrip = {
+        id: Date.now(),
+        ...tripForm,
+        days: []
+      };
+      setTrips([...trips, newTrip]);
+      setTripForm({ title: '', cover: '', startDate: '', endDate: '' });
+      setCurrentView('home');
+    }
+  };
+
+  const openTrip = (trip) => {
+    setCurrentTrip(trip);
+    setCurrentView('review-book');
+    setReviewPage(0);
+  };
+
+  const addDailyEntry = () => {
+    if (currentTrip) {
+      const canvas = canvasRef.current;
+      const drawingData = canvas.toDataURL();
+      
+      const newDay = {
+        id: Date.now(),
+        date: new Date().toISOString().split('T')[0],
+        drawing: drawingData,
+        description: dayForm.description,
+        images: dayForm.images
+      };
+      
+      const updatedTrip = {
+        ...currentTrip,
+        days: [...currentTrip.days, newDay]
+      };
+      
+      setTrips(trips.map(t => t.id === currentTrip.id ? updatedTrip : t));
+      setCurrentTrip(updatedTrip);
+      setDayForm({ description: '', images: [] });
+      setCurrentView('review-book');
+    }
+  };
+
+  const renderHome = () => (
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-red-50 relative overflow-hidden">
+      {/* Artistic background elements */}
+      <div className="absolute inset-0 opacity-10">
+        <div className="absolute top-20 left-10 w-32 h-32 bg-yellow-300 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-32 right-10 w-24 h-24 bg-pink-300 rounded-full blur-2xl"></div>
+        <div className="absolute top-1/2 left-1/4 w-20 h-20 bg-blue-300 rounded-full blur-2xl"></div>
+      </div>
+      
+      <div className="max-w-sm mx-auto p-6 relative z-10">
+        <div className="text-center mb-8">
+          <div className="inline-block p-4 bg-white bg-opacity-70 rounded-3xl shadow-xl backdrop-blur-sm mb-4">
+            <Palette size={32} className="text-amber-600" />
+          </div>
+          <h1 className="text-3xl font-bold text-gray-800 mb-2" style={{fontFamily: 'Georgia, serif'}}>
+            Travel Sketchbook
+          </h1>
+          <p className="text-gray-600 text-sm">Capture your journey in art</p>
+        </div>
+        
+        <button 
+          onClick={() => setCurrentView('create-book')}
+          className="w-full bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 text-white p-5 rounded-2xl mb-6 flex items-center justify-center gap-3 shadow-xl transform transition-all active:scale-95"
+          style={{boxShadow: '0 10px 30px rgba(251, 146, 60, 0.3)'}}
+        >
+          <Plus size={24} />
+          <span className="text-lg font-medium">New Sketchbook</span>
+        </button>
+        
+        <div className="space-y-4">
+          {trips.map(trip => (
+            <div 
+              key={trip.id}
+              onClick={() => openTrip(trip)}
+              className="bg-white bg-opacity-80 backdrop-blur-sm p-5 rounded-2xl shadow-lg transform transition-all active:scale-95 border border-white border-opacity-50"
+              style={trip.cover ? { 
+                backgroundImage: `linear-gradient(rgba(255,255,255,0.85), rgba(255,255,255,0.85)), url(${trip.cover})`, 
+                backgroundSize: 'cover' 
+              } : {}}
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <h3 className="font-bold text-xl text-gray-800 mb-1" style={{fontFamily: 'Georgia, serif'}}>
+                    {trip.title}
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-2">
+                    {new Date(trip.startDate).toLocaleDateString()} - {new Date(trip.endDate).toLocaleDateString()}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
+                      <Edit size={14} className="text-amber-600" />
+                      <span className="text-sm text-amber-700 font-medium">{trip.days.length} sketches</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="w-12 h-12 bg-gradient-to-br from-amber-200 to-orange-300 rounded-xl flex items-center justify-center">
+                  <Book size={20} className="text-amber-700" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        
+        {trips.length === 0 && (
+          <div className="text-center text-gray-500 mt-16 bg-white bg-opacity-50 backdrop-blur-sm p-8 rounded-2xl">
+            <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-amber-200 to-orange-300 rounded-2xl flex items-center justify-center">
+              <Book size={28} className="text-amber-700" />
+            </div>
+            <p className="font-medium mb-2">Your creative journey awaits</p>
+            <p className="text-sm">Start your first travel sketchbook</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  const renderCreateBook = () => (
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-red-50">
+      <div className="max-w-sm mx-auto p-6">
+        <div className="flex items-center mb-8">
+          <button onClick={() => setCurrentView('home')} className="p-3 bg-white bg-opacity-70 rounded-xl shadow-md">
+            <ChevronLeft size={24} className="text-gray-700" />
+          </button>
+          <h1 className="text-2xl font-bold text-gray-800 ml-4" style={{fontFamily: 'Georgia, serif'}}>
+            New Sketchbook
+          </h1>
+        </div>
+        
+        <div className="bg-white bg-opacity-80 backdrop-blur-sm p-6 rounded-2xl shadow-xl border border-white border-opacity-50 space-y-5">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-3">Journey Title</label>
+            <input 
+              type="text"
+              value={tripForm.title}
+              onChange={(e) => setTripForm({...tripForm, title: e.target.value})}
+              className="w-full p-4 border-2 border-amber-200 rounded-xl bg-white bg-opacity-70 backdrop-blur-sm focus:border-amber-400 focus:outline-none transition-colors"
+              placeholder="My Artistic Adventure"
+              style={{fontFamily: 'Georgia, serif'}}
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-3">Cover Image URL</label>
+            <input 
+              type="url"
+              value={tripForm.cover}
+              onChange={(e) => setTripForm({...tripForm, cover: e.target.value})}
+              className="w-full p-4 border-2 border-amber-200 rounded-xl bg-white bg-opacity-70 backdrop-blur-sm focus:border-amber-400 focus:outline-none transition-colors"
+              placeholder="https://your-inspiration.jpg"
+            />
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">Start Date</label>
+              <input 
+                type="date"
+                value={tripForm.startDate}
+                onChange={(e) => setTripForm({...tripForm, startDate: e.target.value})}
+                className="w-full p-4 border-2 border-amber-200 rounded-xl bg-white bg-opacity-70 backdrop-blur-sm focus:border-amber-400 focus:outline-none transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">End Date</label>
+              <input 
+                type="date"
+                value={tripForm.endDate}
+                onChange={(e) => setTripForm({...tripForm, endDate: e.target.value})}
+                className="w-full p-4 border-2 border-amber-200 rounded-xl bg-white bg-opacity-70 backdrop-blur-sm focus:border-amber-400 focus:outline-none transition-colors"
+              />
+            </div>
+          </div>
+          
+          <button 
+            onClick={createTrip}
+            className="w-full bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 text-white p-4 rounded-xl font-medium text-lg shadow-lg transform transition-all active:scale-95"
+            style={{boxShadow: '0 8px 25px rgba(251, 146, 60, 0.3)'}}
+          >
+            Create Sketchbook
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderDailyEntry = () => (
+    <div className="min-h-screen bg-gradient-to-br from-stone-100 to-amber-50">
+      <div className="bg-white bg-opacity-90 backdrop-blur-sm shadow-lg border-b border-amber-200 p-4">
+        <div className="flex items-center justify-between max-w-sm mx-auto">
+          <button onClick={() => setCurrentView('review-book')} className="p-3 bg-amber-100 rounded-xl">
+            <ChevronLeft size={24} className="text-amber-700" />
+          </button>
+          <h1 className="text-lg font-bold text-gray-800" style={{fontFamily: 'Georgia, serif'}}>
+            Today's Sketch
+          </h1>
+          <button 
+            onClick={addDailyEntry} 
+            className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 py-2 rounded-xl font-medium shadow-md"
+          >
+            Save
+          </button>
+        </div>
+      </div>
+      
+      <div className="max-w-sm mx-auto p-4 space-y-4">
+        {/* Drawing Canvas */}
+        <div className="bg-white bg-opacity-95 backdrop-blur-sm rounded-2xl shadow-xl overflow-hidden border-2 border-amber-200">
+          <div className="p-4 bg-gradient-to-r from-amber-100 to-orange-100 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Palette size={20} className="text-amber-700" />
+              <span className="font-medium text-gray-800">Art Canvas</span>
+            </div>
             
-            // Drawing states
-            const canvasRef = useRef(null);
-            const [isDrawing, setIsDrawing] = useState(false);
-            const [brushSize, setBrushSize] = useState(3);
-            const [currentColor, setCurrentColor] = useState('#2D3436');
-            const [showColorPicker, setShowColorPicker] = useState(false);
-            const [currentTool, setCurrentTool] = useState('brush');
+            {/* Tool Selection */}
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => setCurrentTool('brush')}
+                className={`p-2 rounded-lg transition-colors ${currentTool === 'brush' ? 'bg-amber-500 text-white' : 'bg-white text-amber-700'}`}
+              >
+                <Brush size={16} />
+              </button>
+              <button 
+                onClick={() => setCurrentTool('eraser')}
+                className={`p-2 rounded-lg transition-colors ${currentTool === 'eraser' ? 'bg-amber-500 text-white' : 'bg-white text-amber-700'}`}
+              >
+                <Eraser size={16} />
+              </button>
+              <button 
+                onClick={clearCanvas}
+                className="p-2 rounded-lg bg-white text-amber-700 hover:bg-amber-50"
+              >
+                <RotateCcw size={16} />
+              </button>
+            </div>
+          </div>
+          
+          {/* Brush Size & Color Controls */}
+          <div className="px-4 py-3 bg-gradient-to-r from-amber-50 to-orange-50 border-t border-amber-200">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-gray-600">Size:</span>
+                <input 
+                  type="range" 
+                  min="1" 
+                  max="20" 
+                  value={brushSize}
+                  onChange={(e) => setBrushSize(e.target.value)}
+                  className="w-20 accent-amber-500"
+                />
+                <span className="text-sm text-gray-600 w-8">{brushSize}px</span>
+              </div>
+              
+              <button 
+                onClick={() => setShowColorPicker(!showColorPicker)}
+                className="w-8 h-8 rounded-full border-3 border-white shadow-md transition-transform active:scale-95"
+                style={{ backgroundColor: currentColor, borderWidth: '3px' }}
+              />
+            </div>
             
-            // Form states
-            const [tripForm, setTripForm] = useState({ title: '', cover: '', startDate: '', endDate: '' });
-            const [dayForm, setDayForm] = useState({ description: '', images: [] });
-
-            // Initialize canvas
-            useEffect(() => {
-                if (canvasRef.current && currentView === 'daily-entry') {
-                    const canvas = canvasRef.current;
-                    const ctx = canvas.getContext('2d');
-                    
-                    // Set canvas size for mobile
-                    const rect = canvas.getBoundingClientRect();
-                    canvas.width = rect.width * window.devicePixelRatio;
-                    canvas.height = rect.height * window.devicePixelRatio;
-                    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-                    
-                    ctx.lineCap = 'round';
-                    ctx.lineJoin = 'round';
-                    
-                    // Textured paper background
-                    ctx.fillStyle = '#FEFEFE';
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    
-                    // Add subtle paper texture
-                    ctx.globalAlpha = 0.05;
-                    for (let i = 0; i < 50; i++) {
-                        ctx.fillStyle = Math.random() > 0.5 ? '#E8E8E8' : '#F5F5F5';
-                        ctx.fillRect(Math.random() * canvas.width, Math.random() * canvas.height, 2, 2);
-                    }
-                    ctx.globalAlpha = 1;
-                }
-            }, [currentView]);
-
-            // Artistic color palette
-            const colorPalettes = {
-                sketch: ['#2D3436', '#636E72', '#B2BEC3', '#DDD6C5', '#F4E4BC'],
-                warm: ['#E17055', '#FDCB6E', '#E84393', '#FD79A8', '#FDCB6E'],
-                cool: ['#0984E3', '#74B9FF', '#00B894', '#55EFC4', '#A29BFE'],
-                earth: ['#8D6E63', '#D7CCC8', '#6C5B7B', '#C06C84', '#F8B195'],
-                vintage: ['#4A4A4A', '#8B7355', '#C7956D', '#E4C5AF', '#F2E7D5']
-            };
+            {/* Color Palette Selector */}
+            <div className="flex gap-2 mb-3">
+              {Object.keys(colorPalettes).map(palette => (
+                <button 
+                  key={palette}
+                  onClick={() => setCurrentPalette(palette)}
+                  className={`px-3 py-1 text-xs rounded-full transition-colors ${
+                    currentPalette === palette 
+                      ? 'bg-amber-500 text-white' 
+                      : 'bg-white text-gray-600 hover:bg-amber-100'
+                  }`}
+                >
+                  {palette}
+                </button>
+              ))}
+            </div>
             
-            const [currentPalette, setCurrentPalette] = useState('sketch');
+            {showColorPicker && (
+              <div className="flex flex-wrap gap-2">
+                {colorPalettes[currentPalette].map(color => (
+                  <button 
+                    key={color}
+                    onClick={() => {setCurrentColor(color); setShowColorPicker(false);}}
+                    className="w-10 h-10 rounded-full border-3 border-white shadow-md transition-transform active:scale-95"
+                    style={{ backgroundColor: color, borderWidth: '3px' }}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+          
+          <canvas 
+            ref={canvasRef}
+            className="w-full h-80 touch-none cursor-crosshair"
+            onMouseDown={startDrawing}
+            onMouseMove={draw}
+            onMouseUp={stopDrawing}
+            onMouseLeave={stopDrawing}
+            onTouchStart={startDrawing}
+            onTouchMove={draw}
+            onTouchEnd={stopDrawing}
+            style={{background: 'linear-gradient(45deg, #fefefe 25%, transparent 25%, transparent 75%, #fefefe 75%), linear-gradient(45deg, #fefefe 25%, transparent 25%, transparent 75%, #fefefe 75%)', backgroundSize: '20px 20px', backgroundPosition: '0 0, 10px 10px'}}
+          />
+        </div>
+        
+        {/* Description */}
+        <div className="bg-white bg-opacity-95 backdrop-blur-sm rounded-2xl shadow-xl p-5 border-2 border-amber-200">
+          <div className="flex items-center gap-3 mb-4">
+            <Type size={20} className="text-amber-700" />
+            <span className="font-medium text-gray-800">Travel Notes</span>
+          </div>
+          <textarea 
+            value={dayForm.description}
+            onChange={(e) => setDayForm({...dayForm, description: e.target.value})}
+            className="w-full h-32 p-4 border-2 border-amber-200 rounded-xl resize-none bg-white bg-opacity-70 backdrop-blur-sm focus:border-amber-400 focus:outline-none transition-colors"
+            placeholder="Describe your day, the places you visited, the people you met..."
+            style={{fontFamily: 'Georgia, serif'}}
+          />
+        </div>
+        
+        {/* Photo Section */}
+        <div className="bg-white bg-opacity-95 backdrop-blur-sm rounded-2xl shadow-xl p-5 border-2 border-amber-200">
+          <div className="flex items-center gap-3 mb-4">
+            <Camera size={20} className="text-amber-700" />
+            <span className="font-medium text-gray-800">Reference Photos</span>
+          </div>
+          <div className="border-2 border-dashed border-amber-300 rounded-xl p-8 text-center text-gray-500 bg-gradient-to-br from-amber-50 to-orange-50">
+            <Camera size={32} className="mx-auto mb-3 text-amber-600" />
+            <p className="text-sm font-medium mb-1">Add inspiration photos</p>
+            <p className="text-xs">Reference images for your sketches</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
-            const startDrawing = (e) => {
-                e.preventDefault();
-                setIsDrawing(true);
-                const canvas = canvasRef.current;
-                const ctx = canvas.getContext('2d');
-                const rect = canvas.getBoundingClientRect();
-                
-                const touch = e.touches ? e.touches[0] : e;
-                const x = touch.clientX - rect.left;
-                const y = touch.clientY - rect.top;
-                
-                ctx.beginPath();
-                ctx.moveTo(x, y);
-            };
-
-            const draw = (e) => {
-                e.preventDefault();
-                if (!isDrawing) return;
-                
-                const canvas = canvasRef.current;
-                const ctx = canvas.getContext('2d');
-                const rect = canvas.getBoundingClientRect();
-                
-                const touch = e.touches ? e.touches[0] : e;
-                const x = touch.clientX - rect.left;
-                const y = touch.clientY - rect.top;
-                
-                if (currentTool === 'eraser') {
-                    ctx.globalCompositeOperation = 'destination-out';
-                    ctx.lineWidth = brushSize * 2;
-                } else {
-                    ctx.globalCompositeOperation = 'source-over';
-                    ctx.lineWidth = brushSize;
-                    ctx.strokeStyle = currentColor;
-                }
-                
-                // Add slight randomness for natural strokes
-                const randomOffset = Math.random() * 0.5 - 0.25;
-                ctx.lineTo(x + randomOffset, y + randomOffset);
-                ctx.stroke();
-                ctx.beginPath();
-                ctx.moveTo(x + randomOffset, y + randomOffset);
-            };
-
-            const stopDrawing = () => {
-                setIsDrawing(false);
-            };
-
-            const clearCanvas = () => {
-                const canvas = canvasRef.current;
-                const ctx = canvas.getContext('2d');
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                
-                // Redraw paper texture
-                ctx.fillStyle = '#FEFEFE';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.globalAlpha = 0.05;
-                for (let i = 0; i < 50; i++) {
-                    ctx.fillStyle = Math.random() > 0.5 ? '#E8E8E8' : '#F5F5F5';
-                    ctx.fillRect(Math.random() * canvas.width, Math.random() * canvas.height, 2, 2);
-                }
-                ctx.globalAlpha = 1;
-            };
-
-            const createTrip = () => {
-                if (tripForm.title && tripForm.startDate && tripForm.endDate) {
-                    const newTrip = {
-                        id: Date.now(),
-                        ...tripForm,
-                        days: []
-                    };
-                    setTrips([...trips, newTrip]);
-                    setTripForm({ title: '', cover: '', startDate: '', endDate: '' });
-                    setCurrentView('home');
-                }
-            };
-
-            const openTrip = (trip) => {
-                setCurrentTrip(trip);
-                setCurrentView('review-book');
-                setReviewPage(0);
-            };
-
-            const addDailyEntry = () => {
-                if (currentTrip) {
-                    const canvas = canvasRef.current;
-                    const drawingData = canvas.toDataURL();
-                    
-                    const newDay = {
-                        id: Date.now(),
-                        date: new Date().toISOString().split('T')[0],
-                        drawing: drawingData,
-                        description: dayForm.description,
-                        images: dayForm.images
-                    };
-                    
-                    const updatedTrip = {
-                        ...currentTrip,
-                        days: [...currentTrip.days, newDay]
-                    };
-                    
-                    setTrips(trips.map(t => t.id === currentTrip.id ? updatedTrip : t));
-                    setCurrentTrip(updatedTrip);
-                    setDayForm({ description: '', images: [] });
-                    setCurrentView('review-book');
-                }
-            };
-
-            const renderHome = () => (
-                <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-red-50 relative overflow-hidden">
-                    <div className="absolute inset-0 opacity-10">
-                        <div className="absolute top-20 left-10 w-32 h-32 bg-yellow-300 rounded-full blur-3xl"></div>
-                        <div className="absolute bottom-32 right-10 w-24 h-24 bg-pink-300 rounded-full blur-2xl"></div>
-                        <div className="absolute top-1/2 left-1/4 w-20 h-20 bg-blue-300 rounded-full blur-2xl"></div>
-                    </div>
-                    
-                    <div className="max-w-sm mx-auto p-6 relative z-10">
-                        <div className="text-center mb-8">
-                            <div className="inline-block p-4 bg-white bg-opacity-70 rounded-3xl shadow-xl backdrop-blur-sm mb-4">
-                                <div className="icon icon-palette text-amber-600 text-3xl"></div>
-                            </div>
-                            <h1 className="text-lg font-bold text-gray-800" style={{fontFamily: 'Georgia, serif'}}>
-                                {currentTrip?.title}
-                            </h1>
-                            <button 
-                                onClick={() => {setCurrentView('daily-entry'); setCurrentDay(null);}} 
-                                className="p-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl shadow-md"
-                            >
-                                <div className="icon icon-plus text-xl"></div>
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div className="max-w-sm mx-auto p-4">
-                        {currentTrip?.days.length > 0 ? (
-                            <div className="bg-white bg-opacity-95 backdrop-blur-sm rounded-2xl shadow-2xl overflow-hidden border-2 border-amber-200">
-                                <div className="aspect-square bg-gradient-to-br from-stone-50 to-amber-50 flex items-center justify-center relative overflow-hidden">
-                                    {currentTrip.days[reviewPage]?.drawing ? (
-                                        <div className="w-full h-full relative">
-                                            <img 
-                                                src={currentTrip.days[reviewPage].drawing}
-                                                alt="Travel Sketch"
-                                                className="w-full h-full object-contain"
-                                            />
-                                            <div 
-                                                className="absolute inset-0 pointer-events-none"
-                                                style={{
-                                                    background: 'linear-gradient(45deg, rgba(251, 146, 60, 0.1) 0%, transparent 20%, transparent 80%, rgba(251, 146, 60, 0.1) 100%)',
-                                                    boxShadow: 'inset 0 0 20px rgba(0,0,0,0.1)'
-                                                }}
-                                            ></div>
-                                        </div>
-                                    ) : (
-                                        <div className="text-center text-gray-400">
-                                            <div className="icon icon-edit mx-auto mb-3 text-5xl opacity-50"></div>
-                                            <p>No sketch yet</p>
-                                        </div>
-                                    )}
-                                </div>
-                                
-                                <div className="p-6 bg-gradient-to-br from-white to-amber-50">
-                                    <div className="flex items-center justify-between mb-4">
-                                        <span className="text-sm text-gray-600 bg-amber-100 px-3 py-1 rounded-full">
-                                            {new Date(currentTrip.days[reviewPage]?.date).toLocaleDateString('en-US', {
-                                                weekday: 'long',
-                                                year: 'numeric',
-                                                month: 'long',
-                                                day: 'numeric'
-                                            })}
-                                        </span>
-                                        <span className="text-sm text-amber-600 font-medium bg-white px-3 py-1 rounded-full border border-amber-200">
-                                            {reviewPage + 1} of {currentTrip.days.length}
-                                        </span>
-                                    </div>
-                                    
-                                    <div className="mb-6">
-                                        <p className="text-gray-800 leading-relaxed" style={{fontFamily: 'Georgia, serif'}}>
-                                            {currentTrip.days[reviewPage]?.description || 'No notes for this day...'}
-                                        </p>
-                                    </div>
-                                    
-                                    <div className="flex items-center justify-between">
-                                        <button 
-                                            onClick={() => setReviewPage(Math.max(0, reviewPage - 1))}
-                                            disabled={reviewPage === 0}
-                                            className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-amber-100 to-orange-100 text-amber-700 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
-                                        >
-                                            <div className="icon icon-left"></div>
-                                            <span className="font-medium">Previous</span>
-                                        </button>
-                                        
-                                        <div className="flex gap-3">
-                                            <button className="p-3 bg-gradient-to-r from-blue-100 to-cyan-100 text-blue-700 rounded-xl shadow-md transition-all active:scale-95">
-                                                <div className="icon icon-share"></div>
-                                            </button>
-                                            <button className="p-3 bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 rounded-xl shadow-md transition-all active:scale-95">
-                                                <div className="icon icon-download"></div>
-                                            </button>
-                                        </div>
-                                        
-                                        <button 
-                                            onClick={() => setReviewPage(Math.min(currentTrip.days.length - 1, reviewPage + 1))}
-                                            disabled={reviewPage === currentTrip.days.length - 1}
-                                            className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-amber-100 to-orange-100 text-amber-700 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
-                                        >
-                                            <span className="font-medium">Next</span>
-                                            <div className="icon icon-right"></div>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="text-center text-gray-500 mt-16 bg-white bg-opacity-80 backdrop-blur-sm p-8 rounded-2xl shadow-xl border-2 border-amber-200">
-                                <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-amber-200 to-orange-300 rounded-2xl flex items-center justify-center">
-                                    <div className="icon icon-edit text-amber-700 text-4xl"></div>
-                                </div>
-                                <p className="font-bold text-lg mb-2 text-gray-800" style={{fontFamily: 'Georgia, serif'}}>
-                                    Your canvas awaits
-                                </p>
-                                <p className="text-gray-600 mb-6">Start sketching your travel memories</p>
-                                <button 
-                                    onClick={() => {setCurrentView('daily-entry'); setCurrentDay(null);}}
-                                    className="bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 text-white px-8 py-4 rounded-xl font-medium text-lg shadow-xl transform transition-all active:scale-95"
-                                >
-                                    Create First Sketch
-                                </button>
-                            </div>
-                        )}
-                    </div>
+  const renderReviewBook = () => (
+    <div className="min-h-screen bg-gradient-to-br from-stone-100 to-amber-50">
+      <div className="bg-white bg-opacity-90 backdrop-blur-sm shadow-lg border-b border-amber-200 p-4">
+        <div className="flex items-center justify-between max-w-sm mx-auto">
+          <button onClick={() => setCurrentView('home')} className="p-3 bg-amber-100 rounded-xl">
+            <ChevronLeft size={24} className="text-amber-700" />
+          </button>
+          <h1 className="text-lg font-bold text-gray-800" style={{fontFamily: 'Georgia, serif'}}>
+            {currentTrip?.title}
+          </h1>
+          <button 
+            onClick={() => {setCurrentView('daily-entry'); setCurrentDay(null);}} 
+            className="p-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl shadow-md"
+          >
+            <Plus size={20} />
+          </button>
+        </div>
+      </div>
+      
+      <div className="max-w-sm mx-auto p-4">
+        {currentTrip?.days.length > 0 ? (
+          <div className="bg-white bg-opacity-95 backdrop-blur-sm rounded-2xl shadow-2xl overflow-hidden border-2 border-amber-200">
+            {/* Sketch Display */}
+            <div className="aspect-square bg-gradient-to-br from-stone-50 to-amber-50 flex items-center justify-center relative overflow-hidden">
+              {currentTrip.days[reviewPage]?.drawing ? (
+                <div className="w-full h-full relative">
+                  <img 
+                    src={currentTrip.days[reviewPage].drawing}
+                    alt="Travel Sketch"
+                    className="w-full h-full object-contain"
+                  />
+                  {/* Artistic frame effect */}
+                  <div className="absolute inset-0 pointer-events-none" style={{
+                    background: 'linear-gradient(45deg, rgba(251, 146, 60, 0.1) 0%, transparent 20%, transparent 80%, rgba(251, 146, 60, 0.1) 100%)',
+                    boxShadow: 'inset 0 0 20px rgba(0,0,0,0.1)'
+                  }}></div>
                 </div>
-            );
-
-            return (
-                <div className="font-sans">
-                    {currentView === 'home' && renderHome()}
-                    {currentView === 'create-book' && renderCreateBook()}
-                    {currentView === 'daily-entry' && renderDailyEntry()}
-                    {currentView === 'review-book' && renderReviewBook()}
+              ) : (
+                <div className="text-center text-gray-400">
+                  <Edit size={48} className="mx-auto mb-3 opacity-50" />
+                  <p>No sketch yet</p>
                 </div>
-            );
-        };
-
-        ReactDOM.render(<TravelDrawingDiary />, document.getElementById('root'));
-    </script>
-</body>
-</html>="text-3xl font-bold text-gray-800 mb-2" style={{fontFamily: 'Georgia, serif'}}>
-                                Travel Sketchbook
-                            </h1>
-                            <p className="text-gray-600 text-sm">Capture your journey in art</p>
-                        </div>
-                        
-                        <button 
-                            onClick={() => setCurrentView('create-book')}
-                            className="w-full bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 text-white p-5 rounded-2xl mb-6 flex items-center justify-center gap-3 shadow-xl transform transition-all active:scale-95"
-                            style={{boxShadow: '0 10px 30px rgba(251, 146, 60, 0.3)'}}
-                        >
-                            <div className="icon icon-plus text-2xl font-bold"></div>
-                            <span className="text-lg font-medium">New Sketchbook</span>
-                        </button>
-                        
-                        <div className="space-y-4">
-                            {trips.map(trip => (
-                                <div 
-                                    key={trip.id}
-                                    onClick={() => openTrip(trip)}
-                                    className="bg-white bg-opacity-80 backdrop-blur-sm p-5 rounded-2xl shadow-lg transform transition-all active:scale-95 border border-white border-opacity-50"
-                                    style={trip.cover ? { 
-                                        backgroundImage: `linear-gradient(rgba(255,255,255,0.85), rgba(255,255,255,0.85)), url(${trip.cover})`, 
-                                        backgroundSize: 'cover' 
-                                    } : {}}
-                                >
-                                    <div className="flex items-start justify-between">
-                                        <div className="flex-1">
-                                            <h3 className="font-bold text-xl text-gray-800 mb-1" style={{fontFamily: 'Georgia, serif'}}>
-                                                {trip.title}
-                                            </h3>
-                                            <p className="text-sm text-gray-600 mb-2">
-                                                {new Date(trip.startDate).toLocaleDateString()} - {new Date(trip.endDate).toLocaleDateString()}
-                                            </p>
-                                            <div className="flex items-center gap-2">
-                                                <div className="flex items-center gap-1">
-                                                    <div className="icon icon-edit text-amber-600"></div>
-                                                    <span className="text-sm text-amber-700 font-medium">{trip.days.length} sketches</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="w-12 h-12 bg-gradient-to-br from-amber-200 to-orange-300 rounded-xl flex items-center justify-center">
-                                            <div className="icon icon-book text-amber-700"></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                        
-                        {trips.length === 0 && (
-                            <div className="text-center text-gray-500 mt-16 bg-white bg-opacity-50 backdrop-blur-sm p-8 rounded-2xl">
-                                <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-amber-200 to-orange-300 rounded-2xl flex items-center justify-center">
-                                    <div className="icon icon-book text-amber-700 text-3xl"></div>
-                                </div>
-                                <p className="font-medium mb-2">Your creative journey awaits</p>
-                                <p className="text-sm">Start your first travel sketchbook</p>
-                            </div>
-                        )}
-                    </div>
+              )}
+            </div>
+            
+            {/* Entry Details */}
+            <div className="p-6 bg-gradient-to-br from-white to-amber-50">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-sm text-gray-600 bg-amber-100 px-3 py-1 rounded-full">
+                  {new Date(currentTrip.days[reviewPage]?.date).toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  })}
+                </span>
+                <span className="text-sm text-amber-600 font-medium bg-white px-3 py-1 rounded-full border border-amber-200">
+                  {reviewPage + 1} of {currentTrip.days.length}
+                </span>
+              </div>
+              
+              <div className="mb-6">
+                <p className="text-gray-800 leading-relaxed" style={{fontFamily: 'Georgia, serif'}}>
+                  {currentTrip.days[reviewPage]?.description || 'No notes for this day...'}
+                </p>
+              </div>
+              
+              {/* Navigation & Actions */}
+              <div className="flex items-center justify-between">
+                <button 
+                  onClick={() => setReviewPage(Math.max(0, reviewPage - 1))}
+                  disabled={reviewPage === 0}
+                  className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-amber-100 to-orange-100 text-amber-700 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
+                >
+                  <ChevronLeft size={16} />
+                  <span className="font-medium">Previous</span>
+                </button>
+                
+                <div className="flex gap-3">
+                  <button className="p-3 bg-gradient-to-r from-blue-100 to-cyan-100 text-blue-700 rounded-xl shadow-md transition-all active:scale-95">
+                    <Share size={18} />
+                  </button>
+                  <button className="p-3 bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 rounded-xl shadow-md transition-all active:scale-95">
+                    <Download size={18} />
+                  </button>
                 </div>
-            );
+                
+                <button 
+                  onClick={() => setReviewPage(Math.min(currentTrip.days.length - 1, reviewPage + 1))}
+                  disabled={reviewPage === currentTrip.days.length - 1}
+                  className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-amber-100 to-orange-100 text-amber-700 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
+                >
+                  <span className="font-medium">Next</span>
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center text-gray-500 mt-16 bg-white bg-opacity-80 backdrop-blur-sm p-8 rounded-2xl shadow-xl border-2 border-amber-200">
+            <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-amber-200 to-orange-300 rounded-2xl flex items-center justify-center">
+              <Edit size={32} className="text-amber-700" />
+            </div>
+            <p className="font-bold text-lg mb-2 text-gray-800" style={{fontFamily: 'Georgia, serif'}}>
+              Your canvas awaits
+            </p>
+            <p className="text-gray-600 mb-6">Start sketching your travel memories</p>
+            <button 
+              onClick={() => {setCurrentView('daily-entry'); setCurrentDay(null);}}
+              className="bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 text-white px-8 py-4 rounded-xl font-medium text-lg shadow-xl transform transition-all active:scale-95"
+            >
+              Create First Sketch
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 
-            const renderCreateBook = () => (
-                <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-red-50">
-                    <div className="max-w-sm mx-auto p-6">
-                        <div className="flex items-center mb-8">
-                            <button onClick={() => setCurrentView('home')} className="p-3 bg-white bg-opacity-70 rounded-xl shadow-md">
-                                <div className="icon icon-left text-gray-700 text-xl"></div>
-                            </button>
-                            <h1 className="text-2xl font-bold text-gray-800 ml-4" style={{fontFamily: 'Georgia, serif'}}>
-                                New Sketchbook
-                            </h1>
-                        </div>
-                        
-                        <div className="bg-white bg-opacity-80 backdrop-blur-sm p-6 rounded-2xl shadow-xl border border-white border-opacity-50 space-y-5">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-3">Journey Title</label>
-                                <input 
-                                    type="text"
-                                    value={tripForm.title}
-                                    onChange={(e) => setTripForm({...tripForm, title: e.target.value})}
-                                    className="w-full p-4 border-2 border-amber-200 rounded-xl bg-white bg-opacity-70 backdrop-blur-sm focus:border-amber-400 focus:outline-none transition-colors"
-                                    placeholder="My Artistic Adventure"
-                                    style={{fontFamily: 'Georgia, serif'}}
-                                />
-                            </div>
-                            
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-3">Cover Image URL</label>
-                                <input 
-                                    type="url"
-                                    value={tripForm.cover}
-                                    onChange={(e) => setTripForm({...tripForm, cover: e.target.value})}
-                                    className="w-full p-4 border-2 border-amber-200 rounded-xl bg-white bg-opacity-70 backdrop-blur-sm focus:border-amber-400 focus:outline-none transition-colors"
-                                    placeholder="https://your-inspiration.jpg"
-                                />
-                            </div>
-                            
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-3">Start Date</label>
-                                    <input 
-                                        type="date"
-                                        value={tripForm.startDate}
-                                        onChange={(e) => setTripForm({...tripForm, startDate: e.target.value})}
-                                        className="w-full p-4 border-2 border-amber-200 rounded-xl bg-white bg-opacity-70 backdrop-blur-sm focus:border-amber-400 focus:outline-none transition-colors"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-3">End Date</label>
-                                    <input 
-                                        type="date"
-                                        value={tripForm.endDate}
-                                        onChange={(e) => setTripForm({...tripForm, endDate: e.target.value})}
-                                        className="w-full p-4 border-2 border-amber-200 rounded-xl bg-white bg-opacity-70 backdrop-blur-sm focus:border-amber-400 focus:outline-none transition-colors"
-                                    />
-                                </div>
-                            </div>
-                            
-                            <button 
-                                onClick={createTrip}
-                                className="w-full bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 text-white p-4 rounded-xl font-medium text-lg shadow-lg transform transition-all active:scale-95"
-                                style={{boxShadow: '0 8px 25px rgba(251, 146, 60, 0.3)'}}
-                            >
-                                Create Sketchbook
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            );
+  return (
+    <div className="font-sans">
+      {currentView === 'home' && renderHome()}
+      {currentView === 'create-book' && renderCreateBook()}
+      {currentView === 'daily-entry' && renderDailyEntry()}
+      {currentView === 'review-book' && renderReviewBook()}
+    </div>
+  );
+};
 
-            const renderDailyEntry = () => (
-                <div className="min-h-screen bg-gradient-to-br from-stone-100 to-amber-50">
-                    <div className="bg-white bg-opacity-90 backdrop-blur-sm shadow-lg border-b border-amber-200 p-4">
-                        <div className="flex items-center justify-between max-w-sm mx-auto">
-                            <button onClick={() => setCurrentView('review-book')} className="p-3 bg-amber-100 rounded-xl">
-                                <div className="icon icon-left text-amber-700 text-xl"></div>
-                            </button>
-                            <h1 className="text-lg font-bold text-gray-800" style={{fontFamily: 'Georgia, serif'}}>
-                                Today's Sketch
-                            </h1>
-                            <button 
-                                onClick={addDailyEntry} 
-                                className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 py-2 rounded-xl font-medium shadow-md"
-                            >
-                                Save
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div className="max-w-sm mx-auto p-4 space-y-4">
-                        <div className="bg-white bg-opacity-95 backdrop-blur-sm rounded-2xl shadow-xl overflow-hidden border-2 border-amber-200">
-                            <div className="p-4 bg-gradient-to-r from-amber-100 to-orange-100 flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div className="icon icon-palette text-amber-700"></div>
-                                    <span className="font-medium text-gray-800">Art Canvas</span>
-                                </div>
-                                
-                                <div className="flex items-center gap-2">
-                                    <button 
-                                        onClick={() => setCurrentTool('brush')}
-                                        className={`p-2 rounded-lg transition-colors ${currentTool === 'brush' ? 'bg-amber-500 text-white' : 'bg-white text-amber-700'}`}
-                                    >
-                                        <div className="icon icon-brush"></div>
-                                    </button>
-                                    <button 
-                                        onClick={() => setCurrentTool('eraser')}
-                                        className={`p-2 rounded-lg transition-colors ${currentTool === 'eraser' ? 'bg-amber-500 text-white' : 'bg-white text-amber-700'}`}
-                                    >
-                                        <div className="icon icon-eraser"></div>
-                                    </button>
-                                    <button 
-                                        onClick={clearCanvas}
-                                        className="p-2 rounded-lg bg-white text-amber-700 hover:bg-amber-50"
-                                    >
-                                        <div className="icon icon-clear"></div>
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            <div className="px-4 py-3 bg-gradient-to-r from-amber-50 to-orange-50 border-t border-amber-200">
-                                <div className="flex items-center justify-between mb-3">
-                                    <div className="flex items-center gap-3">
-                                        <span className="text-sm text-gray-600">Size:</span>
-                                        <input 
-                                            type="range" 
-                                            min="1" 
-                                            max="20" 
-                                            value={brushSize}
-                                            onChange={(e) => setBrushSize(e.target.value)}
-                                            className="w-20 accent-amber-500"
-                                        />
-                                        <span className="text-sm text-gray-600 w-8">{brushSize}px</span>
-                                    </div>
-                                    
-                                    <button 
-                                        onClick={() => setShowColorPicker(!showColorPicker)}
-                                        className="w-8 h-8 rounded-full border-3 border-white shadow-md transition-transform active:scale-95"
-                                        style={{ backgroundColor: currentColor, borderWidth: '3px' }}
-                                    />
-                                </div>
-                                
-                                <div className="flex gap-2 mb-3">
-                                    {Object.keys(colorPalettes).map(palette => (
-                                        <button 
-                                            key={palette}
-                                            onClick={() => setCurrentPalette(palette)}
-                                            className={`px-3 py-1 text-xs rounded-full transition-colors ${
-                                                currentPalette === palette 
-                                                    ? 'bg-amber-500 text-white' 
-                                                    : 'bg-white text-gray-600 hover:bg-amber-100'
-                                            }`}
-                                        >
-                                            {palette}
-                                        </button>
-                                    ))}
-                                </div>
-                                
-                                {showColorPicker && (
-                                    <div className="flex flex-wrap gap-2">
-                                        {colorPalettes[currentPalette].map(color => (
-                                            <button 
-                                                key={color}
-                                                onClick={() => {setCurrentColor(color); setShowColorPicker(false);}}
-                                                className="w-10 h-10 rounded-full border-3 border-white shadow-md transition-transform active:scale-95"
-                                                style={{ backgroundColor: color, borderWidth: '3px' }}
-                                            />
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                            
-                            <canvas 
-                                ref={canvasRef}
-                                className="w-full h-80 touch-none cursor-crosshair"
-                                onMouseDown={startDrawing}
-                                onMouseMove={draw}
-                                onMouseUp={stopDrawing}
-                                onMouseLeave={stopDrawing}
-                                onTouchStart={startDrawing}
-                                onTouchMove={draw}
-                                onTouchEnd={stopDrawing}
-                                style={{
-                                    background: 'linear-gradient(45deg, #fefefe 25%, transparent 25%, transparent 75%, #fefefe 75%), linear-gradient(45deg, #fefefe 25%, transparent 25%, transparent 75%, #fefefe 75%)',
-                                    backgroundSize: '20px 20px',
-                                    backgroundPosition: '0 0, 10px 10px'
-                                }}
-                            />
-                        </div>
-                        
-                        <div className="bg-white bg-opacity-95 backdrop-blur-sm rounded-2xl shadow-xl p-5 border-2 border-amber-200">
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="icon icon-type text-amber-700"></div>
-                                <span className="font-medium text-gray-800">Travel Notes</span>
-                            </div>
-                            <textarea 
-                                value={dayForm.description}
-                                onChange={(e) => setDayForm({...dayForm, description: e.target.value})}
-                                className="w-full h-32 p-4 border-2 border-amber-200 rounded-xl resize-none bg-white bg-opacity-70 backdrop-blur-sm focus:border-amber-400 focus:outline-none transition-colors"
-                                placeholder="Describe your day, the places you visited, the people you met..."
-                                style={{fontFamily: 'Georgia, serif'}}
-                            />
-                        </div>
-                        
-                        <div className="bg-white bg-opacity-95 backdrop-blur-sm rounded-2xl shadow-xl p-5 border-2 border-amber-200">
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="icon icon-camera text-amber-700"></div>
-                                <span className="font-medium text-gray-800">Reference Photos</span>
-                            </div>
-                            <div className="border-2 border-dashed border-amber-300 rounded-xl p-8 text-center text-gray-500 bg-gradient-to-br from-amber-50 to-orange-50">
-                                <div className="icon icon-camera mx-auto mb-3 text-amber-600 text-3xl"></div>
-                                <p className="text-sm font-medium mb-1">Add inspiration photos</p>
-                                <p className="text-xs">Reference images for your sketches</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            );
-
-            const renderReviewBook = () => (
-                <div className="min-h-screen bg-gradient-to-br from-stone-100 to-amber-50">
-                    <div className="bg-white bg-opacity-90 backdrop-blur-sm shadow-lg border-b border-amber-200 p-4">
-                        <div className="flex items-center justify-between max-w-sm mx-auto">
-                            <button onClick={() => setCurrentView('home')} className="p-3 bg-amber-100 rounded-xl">
-                                <div className="icon icon-left text-amber-700 text-xl"></div>
-                            </button>
-                            <h1 className
+export default TravelDrawingDiary;
